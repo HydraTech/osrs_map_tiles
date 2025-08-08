@@ -8,7 +8,9 @@ RUN ls /usr/local/bin/miniconda3/bin
 ENV PATH="/usr/local/bin/miniconda3/bin:${PATH}"
 
 # Create a conda env
-RUN conda create --name vips python=3.7
+RUN conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main \
+    && conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r \
+    && conda create --name vips python=3.7
 
 # Update all future "RUN" commands to use the conda env
 SHELL ["conda", "run", "--no-capture-output", "-n", "vips", "/bin/bash", "-c"]
@@ -36,7 +38,12 @@ RUN conda install -c conda-forge maven
 ADD src src
 ADD java /java
 
+# Sorry, this is for me because I'm on windows...
+RUN conda install -c conda-forge dos2unix \
+    && dos2unix /java/* \
+    && echo "$(ls -la /java)"
+
 RUN chmod +x /java/gradlew
-RUN /java/gradlew -p /java build
+RUN bash /java/gradlew -p /java build
 
 CMD [ "conda", "run", "--no-capture-output", "-n", "vips", "python", "./src/tile_generator.py" ]
