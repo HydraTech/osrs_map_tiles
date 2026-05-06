@@ -67,11 +67,11 @@ class Side(Enum):
 
 
 def main():
-    LOG.info("Downloading cache & XTEAs")
-    [cache_dir, xtea_file] = download_cache_with_xteas()
+    LOG.info("Downloading cache")
+    [cache_dir] = download_cache()
 
     LOG.info("Building map base images")
-    build_full_map_images(cache_dir, xtea_file)
+    build_full_map_images(cache_dir)
 
     LOG.info("Generating tiles")
     for plane in range(MAX_Z + 1):
@@ -86,9 +86,9 @@ def main():
         os.replace(generated_file_name, current_map_image_name)
        
 
-def download_cache_with_xteas():
+def download_cache():
     """
-        Downloads latest cache and XTEAs from specified URL.
+        Downloads latest cache from specified URL.
         These are both hard requirements for generating the full OSRS map image with Runelite
     """
 
@@ -99,16 +99,14 @@ def download_cache_with_xteas():
     LOG.info(f"Cache build: {latest_cache_version['build(s)']}")
     
     cache_dir = os.path.join(ROOT_CACHE_DIR, latest_cache_version['timestamp'].strftime("%Y-%m-%d_%H_%M_%S") + "/")
-    xtea_file = os.path.join(cache_dir, "xteas.json")
 
     if os.path.isdir(cache_dir):
         print(f"Cache directory already exists, skipping download")
     else:
         os.makedirs(cache_dir, exist_ok=True)
-        download_xteas(latest_cache_version["links"]["xteas"], xtea_file)
         download_and_extract_cache(latest_cache_version["links"]["cache"], cache_dir)
 
-    return [cache_dir, xtea_file]
+    return [cache_dir]
 
 
 def fetch_latest_osrs_cache_version():
@@ -165,8 +163,7 @@ def fetch_osrs_cache_versions():
 
             mapped_row["links"] = {
                 "base": f"{CACHES_BASE_URL}/caches/runescape/{cache_idx_num}",
-                "cache": f"{CACHES_BASE_URL}/caches/runescape/{cache_idx_num}/disk.zip",
-                "xteas": f"{CACHES_BASE_URL}/caches/runescape/{cache_idx_num}/keys.json"
+                "cache": f"{CACHES_BASE_URL}/caches/runescape/{cache_idx_num}/disk.zip"
             }
 
             if mapped_row["build(s)"]:
@@ -175,28 +172,6 @@ def fetch_osrs_cache_versions():
             oldschool_rows.append(mapped_row)
 
     return oldschool_rows
-
-
-def download_xteas(xtea_url, output_file):
-    """
-        Downloads XTEAs in the format required by Runelite
-    """
-    xtea_file_json = requests.get(xtea_url, allow_redirects=True).json()
-
-    runelite_xteas = map_openrs2_xteas_to_runelite_format(xtea_file_json)
-
-    with open(output_file, 'w') as f:
-        json.dump(runelite_xteas, f,  indent=4)
-    
-
-def map_openrs2_xteas_to_runelite_format(xteas): 
-    return [
-        {
-            "region": region["mapsquare"],
-            "keys": region["key"]
-        }
-        for region in xteas
-    ]
 
 
 def download_and_extract_cache(cache_zip_url, output_dir):
@@ -220,7 +195,7 @@ def download_and_extract_cache(cache_zip_url, output_dir):
     os.remove(cache_zip)
 
 
-def build_full_map_images(cache_dir, xtea_file):
+def build_full_map_images(cache_dir):
     """
         Runs Runelite's MapImageDumper Java program to generate full OSRS map images
     """
@@ -236,7 +211,6 @@ def build_full_map_images(cache_dir, xtea_file):
             jar_file,
             'org.explv.mapimage.Main', 
             '--cachedir', cache_dir, 
-            '--xteapath', xtea_file, 
             '--outputdir', GENERATED_FULL_IMAGES,
             '--renderLabels', 'false'
         ], 

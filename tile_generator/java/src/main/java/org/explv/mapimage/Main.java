@@ -2,7 +2,6 @@ package org.explv.mapimage;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.function.BiConsumer;
@@ -11,7 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.cache.MapImageDumper;
 import net.runelite.cache.fs.Store;
 import net.runelite.cache.region.Region;
-import net.runelite.cache.util.XteaKeyManager;
 import org.antlr.v4.runtime.misc.Pair;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -23,19 +21,21 @@ import org.apache.commons.cli.ParseException;
 @Slf4j
 public class Main {
 	private static final List<Pair<String, BiConsumer<MapImageDumper, Boolean>>> mapOptions = List.of(
+		new Pair<>("labelRegions", MapImageDumper::setLabelRegions),
+		new Pair<>("outlineRegions", MapImageDumper::setOutlineRegions),
 		new Pair<>("renderMap", MapImageDumper::setRenderMap),
 		new Pair<>("renderObjects", MapImageDumper::setRenderObjects),
 		new Pair<>("renderIcons", MapImageDumper::setRenderIcons),
 		new Pair<>("renderWalls", MapImageDumper::setRenderWalls),
 		new Pair<>("renderOverlays", MapImageDumper::setRenderOverlays),
 		new Pair<>("renderLabels", MapImageDumper::setRenderLabels),
-		new Pair<>("transparency", MapImageDumper::setTransparency)
+		new Pair<>("transparency", MapImageDumper::setTransparency),
+		new Pair<>("lowMemory", MapImageDumper::setLowMemory)
 	);
 
 	public static void main(String[] args) throws IOException {
 		Options options = new Options();
 		options.addOption(Option.builder().longOpt("cachedir").hasArg().required().build());
-		options.addOption(Option.builder().longOpt("xteapath").hasArg().required().build());
 		options.addOption(Option.builder().longOpt("outputdir").hasArg().required().build());
 
 		// read in custom render options, runelite doesn't let you set these by default
@@ -57,14 +57,7 @@ public class Main {
 		}
 
 		final String cacheDirectory = cmd.getOptionValue("cachedir");
-		final String xteaJSONPath = cmd.getOptionValue("xteapath");
 		final String outputDirectory = cmd.getOptionValue("outputdir");
-
-		XteaKeyManager xteaKeyManager = new XteaKeyManager();
-		try (FileInputStream fin = new FileInputStream(xteaJSONPath))
-		{
-			xteaKeyManager.loadKeys(fin);
-		}
 
 		File base = new File(cacheDirectory);
 		File outDir = new File(outputDirectory);
@@ -74,7 +67,7 @@ public class Main {
 		{
 			store.load();
 
-			MapImageDumper dumper = new MapImageDumper(store, xteaKeyManager);
+			MapImageDumper dumper = new MapImageDumper(store, i -> new int[]{0, 0, 0, 0});
 
 			// apply custom render options
 			for (Pair<String, BiConsumer<MapImageDumper, Boolean>> mapOption : mapOptions) {
